@@ -1,0 +1,18 @@
+<!doctype html><html lang="en"><head><meta charset="utf-8"><title>Netrik scan report #{{ scan.id }}</title>
+<style>body{font:14px/1.5 system-ui,Segoe UI,Arial,sans-serif;color:#1b2430;max-width:900px;margin:30px auto;padding:0 20px}h1{font-size:22px}h2{font-size:16px;border-bottom:1px solid #ccd3dc;padding-bottom:4px;margin-top:26px}
+table{border-collapse:collapse;width:100%;margin:8px 0}th,td{text-align:left;border-bottom:1px solid #e1e6ec;padding:5px 8px;font-size:13px}th{background:#f2f5f8}.m{font-family:Consolas,monospace}.mut{color:#5d6b7b}
+.note{border-left:3px solid #999;padding:6px 12px;background:#f6f7f9;margin:12px 0}@media print{body{margin:0}}</style></head><body>
+<h1>Scan report #{{ scan.id }}</h1>
+<p class="mut">Generated {{ generated|local }} by Netrik from {{ collector }}.</p>
+<div class="note">Findings describe what was observed from the scanning location at the time of the scan. An open port is an exposure to review, not proof of a vulnerability or compromise. A silent address is not proof that nothing is there.</div>
+<h2>Scan details</h2>
+<table><tr><th>Type</th><td>{{ scan.kind }} ({{ scan.profile }}{% if scan.ports %}, ports {{ scan.ports }}{% endif %})</td></tr><tr><th>Target</th><td class="m">{{ scan.target }}</td></tr>
+<tr><th>Status</th><td>{{ scan.status }}</td></tr><tr><th>Started / finished</th><td>{{ scan.started_at|local }} / {{ scan.finished_at|local }}</td></tr>
+{% if scan.command %}<tr><th>Command</th><td class="m">{{ scan.command }}</td></tr>{% endif %}</table>
+<h2>Hosts ({{ hosts|length }})</h2>
+{% for h in hosts %}<h3 class="m">{{ h.ip }} {{ h.hostname or '' }}</h3><p class="mut">{{ h.kind }} ({{ h.classification.confidence }} confidence) &middot; MAC {{ h.mac or 'n/a' }} {{ h.vendor or '' }}</p>
+{% if h.ports is none %}<p class="mut">Discovery only: services unknown.</p>{% else %}<table><tr><th>Port</th><th>State</th><th>Service</th><th>Note</th></tr>
+{% for p in h.ports if p.state == 'open' %}<tr><td class="m">{{ p.port }}/{{ p.protocol }}</td><td>{{ p.state }}</td><td>{{ p.service }} {{ p.product }} {{ p.version }}</td><td>{{ p.note or '' }}</td></tr>{% else %}<tr><td colspan="4" class="mut">No open ports among those scanned.</td></tr>{% endfor %}</table>{% endif %}
+{% endfor %}
+{% if alerts %}<h2>Findings raised by this scan</h2><ul>{% for a in alerts %}<li><b>[{{ a.severity }}]</b> {{ a.title }}<br><span class="mut">{{ a.detail.get('what', '') }}</span></li>{% endfor %}</ul>{% endif %}
+</body></html>

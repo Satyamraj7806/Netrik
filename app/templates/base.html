@@ -1,0 +1,33 @@
+{% from "_m.html" import ico, logo %}<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>{% block title %}Home{% endblock %} - Netrik</title>
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Cpath d='M4 32C12 19 22 13 32 13s20 6 28 19c-8 13-18 19-28 19S12 45 4 32Z' fill='none' stroke='%233fb8a0' stroke-width='4'/%3E%3Ccircle cx='32' cy='32' r='9' fill='%233fb8a0'/%3E%3C/svg%3E">
+<link rel="stylesheet" href="/static/style.css"></head>
+<body>
+{% if user %}
+<aside class="side">
+  <div class="brand">{{ logo() }}<div><b>Netrik</b><span>Network visibility and exposure</span></div></div>
+  <nav class="nav">
+    {% macro item(href, label, icon, extra='') %}<a href="{{ href }}" class="{{ 'on' if (path == '/' if href == '/' else path.startswith(href)) }}">{{ ico(icon) }}<span>{{ label }}</span>{{ extra|safe }}</a>{% endmacro %}
+    <div class="grp">Understand</div>
+    {{ item('/', 'Overview', 'layout-dashboard') }}{{ item('/devices', 'Devices', 'monitor-smartphone') }}{{ item('/topology', 'Topology', 'network') }}{{ item('/visibility', 'Visibility', 'eye') }}
+    <div class="grp">Detect and respond</div>
+    {{ item('/alerts', 'Findings', 'shield-alert', ('<span class="count">%d</span>'|format(open_alerts)) if open_alerts else '') }}{{ item('/scans', 'Scans', 'scan-line') }}{{ item('/compare', 'Compare', 'git-compare') }}{{ item('/simulator', 'Simulator', 'flask-conical') }}
+    <div class="grp">Data</div>
+    {{ item('/sources', 'Sources', 'upload') }}{{ item('/reports', 'Reports', 'file-text') }}{{ item('/settings', 'Settings', 'settings') }}
+  </nav>
+  <a id="activity" class="activity" href="/scans"><div class="t"><b>Scanning</b><span></span></div><div class="mini"><i></i></div><small></small></a>
+  <div class="who"><span>Signed in as <b>{{ user }}</b></span>
+    <form method="post" action="/logout"><button class="btn sm" title="Sign out">{{ ico('log-out', 'sm') }}</button></form></div>
+</aside>
+{% endif %}
+<main class="main">
+  {% if user and demo %}<div class="demo-banner">{{ ico('triangle-alert', 'sm') }} DEMO DATA: this network is synthetic and loaded for rehearsal. Nothing shown was observed on a real network.</div>{% endif %}
+  {% if user %}<div class="top"><div><h1>{% block heading %}{% endblock %}</h1><div class="sub">{% block sub %}{% endblock %}</div></div><div class="acts">{% block actions %}{% endblock %}</div></div>{% endif %}
+  {% if flash %}<div class="toast {{ 'err' if flash.kind == 'err' else '' }}" role="status">{{ flash.msg }}</div>{% endif %}
+  {% block content %}{% endblock %}
+</main>
+<script src="/static/icons.js"></script>
+<script src="/static/app.js"></script>
+{% block scripts %}{% endblock %}
+</body></html>

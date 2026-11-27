@@ -1,0 +1,23 @@
+{% extends "base.html" %}{% from "_m.html" import ico %}
+{% block title %}Compare scans{% endblock %}{% block heading %}{{ ico('git-compare') }} Compare scans{% endblock %}
+{% block sub %}See exactly what changed between two scans.{% endblock %}
+{% block content %}
+<form class="card row" method="get">
+  <div><label>Earlier scan</label><select name="a">{% for s in all_scans %}<option value="{{ s.id }}" {{ 'selected' if qa|string == s.id|string }}>#{{ s.id }} {{ s.kind }} {{ s.target }} ({{ s.finished_at|local }})</option>{% endfor %}</select></div>
+  <div><label>Later scan</label><select name="b">{% for s in all_scans %}<option value="{{ s.id }}" {{ 'selected' if qb|string == s.id|string }}>#{{ s.id }} {{ s.kind }} {{ s.target }} ({{ s.finished_at|local }})</option>{% endfor %}</select></div>
+  <div class="auto"><button class="btn pri">Compare</button></div>
+</form>
+{% if diff %}
+{% for w in diff.warn %}<div class="note warn">{{ w }}</div>{% endfor %}
+<div class="grid g2">
+<div class="card flat"><div class="hd"><h2>Hosts</h2></div><table class="t"><tbody>
+  {% for ip in diff.new_hosts %}<tr><td><span class="badge st-new">appeared</span></td><td class="mono">{{ ip }}</td></tr>{% endfor %}
+  {% for ip in diff.gone_hosts %}<tr><td><span class="badge st-stale">not responding</span></td><td class="mono">{{ ip }}</td></tr>{% endfor %}
+  {% if not diff.new_hosts and not diff.gone_hosts %}<tr><td class="mut">No host differences.</td></tr>{% endif %}</tbody></table></div>
+<div class="card flat"><div class="hd"><h2>Services</h2></div><table class="t"><tbody>
+  {% for ip, port, proto, name in diff.opened %}<tr><td><span class="badge st-new">opened</span></td><td class="mono">{{ ip }}:{{ port }}/{{ proto }}</td><td>{{ name }}</td></tr>{% endfor %}
+  {% for ip, port, proto, name in diff.closed %}<tr><td><span class="badge st-ok">closed</span></td><td class="mono">{{ ip }}:{{ port }}/{{ proto }}</td><td>{{ name }}</td></tr>{% endfor %}
+  {% if not diff.opened and not diff.closed %}<tr><td class="mut">No service differences.</td></tr>{% endif %}</tbody></table></div>
+</div>
+{% endif %}
+{% endblock %}

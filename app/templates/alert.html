@@ -1,0 +1,37 @@
+{% extends "base.html" %}{% from "_m.html" import ico, sev, pill %}
+{% block title %}Finding #{{ a.id }}{% endblock %}{% block heading %}{{ a.title }}{% endblock %}
+{% block actions %}<a class="btn" href="/alerts">All findings</a>{% endblock %}
+{% block content %}
+<div class="card">
+  <div style="display:flex;gap:10px;align-items:center;margin-bottom:12px">{{ sev(a.severity) }} {{ pill(a.status) }} <span class="mut">confidence: {{ a.confidence }}</span></div>
+  <div class="note ok" style="font-size:15px"><b>In plain words:</b> {{ adv.plain }}</div>
+  <dl class="kv">
+    <dt>What happened</dt><dd>{{ detail.what }}</dd>
+    <dt>Asset</dt><dd>{% if device %}<a href="/devices/{{ device.id }}">{{ device.label }}</a> ({{ device.zone }}){% else %}-{% endif %}</dd>
+    <dt>When</dt><dd>{{ detail.when|local }}</dd><dt>Observation source</dt><dd>{{ detail.source }}</dd>
+    {% if a.scan_id %}<dt>Scan</dt><dd><a href="/scans/{{ a.scan_id }}">#{{ a.scan_id }}</a></dd>{% endif %}
+  </dl>
+</div>
+{% if detail.get('domains') %}<div class="card flat"><div class="hd"><h2>{{ ico('globe') }} Requests seen</h2><span class="mut small">{{ detail.get('hits', 1) }} request(s) in total{% if detail.get('last') %}, latest {{ detail.last|local }}{% endif %}. A DNS or proxy record shows a request, not proof the page loaded.</span></div>
+  <table class="t"><thead><tr><th>Website</th><th>Requests</th></tr></thead><tbody>{% for dom, n in detail.domains.items() %}<tr><td class="mono">{{ dom }}</td><td>{{ n }}</td></tr>{% endfor %}</tbody></table></div>{% endif %}
+<div class="grid g2">
+  <div class="card"><h2>Evidence</h2><ul class="plain">{% for e in detail.evidence %}<li><b>{{ e.source }}</b> <span class="mut">{{ e.at|local }}</span><br>{{ e.note }}</li>{% endfor %}</ul>
+    <h3>What is known</h3><ul class="plain">{% for k in detail.known %}<li>{{ k }}</li>{% endfor %}</ul>
+    <h3>What is not known</h3><ul class="plain">{% for k in detail.unknown %}<li>{{ k }}</li>{% endfor %}</ul></div>
+  <div class="card"><h2>Why look at this</h2><p>{{ detail.why }}</p>
+    <h3>Recommended action</h3><p>{{ adv.action }}</p><h3>How to verify</h3><p>{{ adv.verify }}</p>
+    {% if a.note %}<div class="note"><b>Note:</b> {{ a.note }}</div>{% endif %}</div>
+</div>
+<div class="grid g2">
+<form class="card" method="post" action="/alerts/{{ a.id }}/decide"><h2>Record your decision</h2>
+  <div class="field"><label>Decision</label><select name="status">{% for k, v in [('investigating','Investigating'),('acknowledged','Accepted: expected or approved'),('resolved','Resolved'),('false_positive','False positive'),('open','Reopen')] %}<option value="{{ k }}" {{ 'selected' if a.status == k }}>{{ v }}</option>{% endfor %}</select></div>
+  <div class="field"><label>Note (who, what was done)</label><input type="text" name="note" maxlength="500" value="{{ a.note if a.status in ('acknowledged','resolved','false_positive') else '' }}"></div>
+  <button class="btn pri">Save decision</button></form>
+<div class="card"><h2>Verification</h2>
+  {% if can_verify %}<p class="mut">Repeats the same test from the same location and compares it with the evidence above.</p>
+    {% if pending %}<p>Verification scan <a href="/scans/{{ pending.id }}">#{{ pending.id }}</a> is queued or running.</p>
+    {% else %}<form method="post" action="/alerts/{{ a.id }}/verify"><button class="btn pri">Verify after the fix</button></form>{% endif %}
+  {% else %}<p class="mut">This finding has no automatic test. Resolve it manually once checked.</p>{% endif %}
+  {% for v in ver %}<div class="note {{ 'ok' if v.result == 'resolved' else 'warn' }}" style="margin-top:12px"><span class="badge rs-{{ v.result }}">{{ v.result|replace('_',' ') }}</span> <span class="mut small">{{ v.created_at|local }} &middot; <a href="/scans/{{ v.scan_id }}">scan #{{ v.scan_id }}</a></span><br>{{ v.explanation }}</div>{% endfor %}
+</div></div>
+{% endblock %}

@@ -1,0 +1,29 @@
+{% extends "base.html" %}{% from "_m.html" import ico, pill %}
+{% block title %}Scans{% endblock %}{% block heading %}{{ ico('scan-line') }} Scans{% endblock %}
+{% block sub %}Active discovery and port scans from this machine, inside your authorised ranges.{% endblock %}
+{% block content %}
+{% if not nmap_ok %}<div class="note bad">Nmap was not found on this machine. Install it with <span class="mono">sudo apt install nmap</span>. Discovery can still read the neighbour table and DHCP data.</div>{% endif %}
+{% if not privileged %}<div class="note warn">Nmap is running unprivileged: scans use TCP connect probes and skip OS detection. Run <span class="mono">scripts/setup_nmap_caps.sh</span> and set <span class="mono">nmap_privileged: true</span> in config.yaml for ARP discovery and SYN scans.</div>{% endif %}
+<div class="grid g21">
+<form class="card" method="post" action="/scans">
+  <h2>New scan</h2>
+  <div class="row">
+    <div><label>Type</label><select name="kind" id="scan-kind"><option value="discovery">Discovery (find devices, no port scan)</option><option value="portscan">Port scan (services)</option></select></div>
+    <div style="flex:2"><label>Target (IP or CIDR range)</label><input type="text" name="target" value="{{ default_target }}" required class="mono"></div>
+  </div>
+  <div class="row" data-portscan style="margin-top:12px">
+    <div><label>Profile</label><select name="profile">{% for k, p in profiles.items() if k != 'discovery' %}<option value="{{ k }}">{{ p.name }}</option>{% endfor %}</select></div>
+    <div><label>Only these ports (optional)</label><input type="text" name="ports" placeholder="e.g. 22,80,3389" class="mono"></div>
+  </div>
+  <div class="field" data-portscan style="margin-top:12px"><label style="display:flex;gap:8px;align-items:center;color:var(--text);font-size:13px"><input type="checkbox" name="live_only" value="1" checked> Scan only hosts already seen recently (much faster on a big range; run discovery first)</label></div>
+  <p class="mut small" style="margin-top:12px">Authorised ranges: <span class="mono">{{ allowed|join(', ') or 'none' }}</span>. Only scan networks you have permission to test. Every scan is rate-limited and written to the audit log.</p>
+  <button class="btn pri">Queue scan</button>
+</form>
+<div class="card"><h2>Profiles</h2><ul class="plain small">{% for k, p in profiles.items() %}<li><b>{{ p.name }}</b><br><span class="mut">{{ p.description }}</span></li>{% endfor %}</ul></div>
+</div>
+<div class="card flat"><div class="hd"><h2>History</h2></div>
+{% if scans %}<table class="t"><thead><tr><th>#</th><th>Type</th><th>Target</th><th>Profile</th><th>Status</th><th>Started</th><th>Result</th></tr></thead><tbody>{% for s in scans %}
+<tr><td><a href="/scans/{{ s.id }}">#{{ s.id }}</a></td><td>{{ s.kind }}</td><td class="mono">{{ s.target }}</td><td>{{ s.profile }}</td><td>{{ pill(s.status) }}</td><td>{{ (s.started_at or s.created_at)|local }}</td>
+<td class="mut small">{% set sm = s.summary|fromjson %}{% if sm and s.kind == 'names' %}{{ sm.get('names_found', 0) }} of {{ sm.get('looked_up', 0) }} names{% elif sm %}{{ sm.get('hosts_up', 0) }} hosts{% if sm.get('open_ports') is not none and sm.get('open_ports') %}, {{ sm.open_ports }} open ports{% endif %}{% elif s.error %}{{ s.error[:60] }}{% endif %}</td></tr>{% endfor %}</tbody></table>
+{% else %}<div class="empty">No scans yet.</div>{% endif %}</div>
+{% endblock %}

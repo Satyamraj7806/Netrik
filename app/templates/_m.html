@@ -1,0 +1,6 @@
+{% macro ico(n, c='') %}<svg class="ico {{ c }}" aria-hidden="true"><use href="/static/icons.svg#{{ n }}"/></svg>{% endmacro %}
+{% macro sev(s) %}<span class="badge sev-{{ s }}">{{ s }}</span>{% endmacro %}
+{% macro status(s) %}{% set names = {'ok':'approved','new':'new','stale':'not seen recently','unreviewed':'unreviewed'} %}<span class="badge st-{{ s }}">{{ names.get(s, s) }}</span>{% endmacro %}
+{% macro pill(s) %}<span class="badge st-{{ s }}">{{ s|replace('_',' ') }}</span>{% endmacro %}
+{% macro chips(items, labels) %}{% for s in items %}<span class="chip" title="{{ labels[s][1] if s in labels else '' }}">{{ labels[s][0] if s in labels else s }}</span>{% endfor %}{% if not items %}<span class="mut small">none recently</span>{% endif %}{% endmacro %}
+{% macro logo() %}<svg class="logo" viewBox="0 0 64 64" aria-hidden="true"><path d="M4 32C12 19 22 13 32 13s20 6 28 19c-8 13-18 19-28 19S12 45 4 32Z" fill="none" stroke="#3fb8a0" stroke-width="3.2" stroke-linejoin="round"/><circle cx="32" cy="32" r="12" fill="#12332e" stroke="#3fb8a0" stroke-width="2.6"/><g class="pupil"><circle cx="32" cy="32" r="5.4" fill="#3fb8a0"/><circle cx="34.6" cy="29.2" r="1.7" fill="#e9fbf6"/></g></svg>{% endmacro %}

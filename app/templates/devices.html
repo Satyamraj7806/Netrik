@@ -1,0 +1,17 @@
+{% extends "base.html" %}{% from "_m.html" import ico, status, chips %}
+{% block title %}Devices{% endblock %}{% block heading %}{{ ico('monitor-smartphone') }} Devices <span class="mut" style="font-size:14px;font-weight:400">{{ rows|length }} of {{ total }}</span>{% endblock %}
+{% block sub %}Everything Netrik has evidence for, with the source and confidence behind each device.{% endblock %}
+{% block actions %}<a class="btn" href="/devices/duplicates">{{ ico('copy', 'sm') }} Duplicates</a><form method="post" action="/devices/lookup-names"><button class="btn" title="Asks known devices for their names via DNS, mDNS and NetBIOS">Look up hostnames</button></form><a class="btn" href="/export/inventory.csv">CSV</a><a class="btn" href="/reports">Reports</a>{% endblock %}
+{% block content %}
+<form class="card row" method="get">
+  <div style="flex:2"><label>Search</label><input type="search" name="q" value="{{ q.get('q','') }}" placeholder="name, IP, MAC, vendor, role"></div>
+  <div><label>Zone</label><select name="zone"><option value="">All</option>{% for z in zones %}<option {{ 'selected' if q.get('zone') == z }}>{{ z }}</option>{% endfor %}</select></div>
+  <div><label>Status</label><select name="status"><option value="">All</option>{% for k, v in [('ok','approved'),('new','new'),('stale','not seen recently'),('unreviewed','unreviewed')] %}<option value="{{ k }}" {{ 'selected' if q.get('status') == k }}>{{ v }}</option>{% endfor %}</select></div>
+  <div><label>Reported by</label><select name="source"><option value="">Any</option>{% for k, v in src_labels.items() %}<option value="{{ k }}" {{ 'selected' if q.get('source') == k }}>{{ v[0] }}</option>{% endfor %}</select></div>
+  <div class="auto"><button class="btn pri">Filter</button></div>
+</form>
+<div class="card flat">{% if rows %}<table class="t"><thead><tr><th>Device</th><th>IP</th><th>MAC</th><th>Role</th><th>Zone</th><th>Reported by (recent)</th><th>Last seen</th><th>Status</th></tr></thead><tbody>
+{% for d in rows %}<tr><td><a href="/devices/{{ d.id }}">{{ d.label }}</a>{% if d.randomized %} <span class="mut small" title="Randomised MAC address">(private MAC)</span>{% endif %}</td>
+<td class="mono">{{ d.ip }}</td><td class="mono">{{ d.mac }}</td><td>{{ d.kind }}</td><td>{{ d.zone }}</td><td>{{ chips(d.sources, src_labels) }}</td><td class="nowrap">{{ d.last_seen|ago }}</td><td>{{ status(d.status) }}</td></tr>{% endfor %}
+</tbody></table>{% else %}<div class="empty">No devices match. {% if total == 0 %}Run a <a href="/scans">discovery scan</a> or import data under <a href="/sources">Sources</a>.{% endif %}</div>{% endif %}</div>
+{% endblock %}

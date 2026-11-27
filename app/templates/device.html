@@ -1,0 +1,36 @@
+{% extends "base.html" %}{% from "_m.html" import status, chips, sev, pill %}
+{% block title %}{{ d.label }}{% endblock %}{% block heading %}{{ d.label }} {{ status(dstatus) }}{% endblock %}
+{% block actions %}<a class="btn" href="/devices">Back to devices</a><form method="post" action="/devices/{{ d.id }}/delete" data-confirm="Delete this device with all its evidence and findings?"><button class="btn dng">Delete device</button></form>{% endblock %}
+{% block content %}
+<div class="grid g2">
+<div class="card"><h2>At a glance</h2>
+  <dl class="kv"><dt>Role</dt><dd>{{ d.kind }}{% if d.os %} <span class="mut">({{ d.os }})</span>{% endif %}</dd><dt>Zone</dt><dd>{{ d.zone }}</dd><dt>Vendor string</dt><dd>{{ d.vendor or 'unknown' }}</dd>
+  <dt>Name learned from</dt><dd>{{ name_labels.get(d.name_source, 'not known: no DNS record, mDNS or NetBIOS answer yet') }}</dd>
+  <dt>Identity confidence</dt><dd>{{ d.confidence }} <span class="mut small">{% if d.randomized %}(randomised MAC: may reappear as a different device){% endif %}</span></dd>
+  <dt>First evidence</dt><dd>{{ d.first_seen|local }}</dd><dt>Last evidence</dt><dd>{{ d.last_seen|local }} ({{ d.last_seen|ago }})</dd>
+  <dt>Recent sources</dt><dd>{{ chips(recent.keys()|list, src_labels) }}</dd></dl></div>
+<div class="card"><h2>Decide</h2>
+  <form method="post" action="/devices/{{ d.id }}/update" class="field"><input type="hidden" name="approve" value="{{ 0 if d.approved else 1 }}">
+    <p class="mut small">Approved devices are part of the baseline. Changes to them raise findings.</p>
+    <button class="btn {{ '' if d.approved else 'pri' }}">{{ 'Remove from baseline' if d.approved else 'Approve this device' }}</button></form>
+  <form method="post" action="/devices/{{ d.id }}/update"><div class="field"><label>Name</label><input type="text" name="label" value="{{ d.label }}" maxlength="60"></div>
+    <div class="field"><label>Note (owner, location)</label><input type="text" name="note" value="{{ d.note }}" maxlength="300"></div><button class="btn">Save</button></form></div>
+</div>
+<form class="card row" method="post" action="/devices/{{ d.id }}/scan"><div style="flex:2"><h2 style="margin:0 0 4px">Scan this device</h2><span class="mut small">Runs from this machine, inside your authorised ranges. Use the detailed profile on a single device rather than a whole range.</span></div>
+  <div><label>Profile</label><select name="profile">{% for k, p in profiles.items() %}<option value="{{ k }}">{{ p.name }}</option>{% endfor %}</select></div>
+  <div><label>Only these ports (optional)</label><input type="text" name="ports" placeholder="e.g. 22,3389" class="mono"></div><div class="auto"><button class="btn pri">Scan</button></div></form>
+<div class="card flat"><div class="hd"><h2>Identity evidence</h2><span class="mut small">A device is more than an IP address: these identifiers were linked to it.</span></div>
+  <table class="t"><thead><tr><th>Type</th><th>Value</th><th>First seen</th><th>Last seen</th></tr></thead><tbody>{% for i in idents %}<tr><td>{{ i.type }}</td><td class="mono">{{ i.value }}</td><td>{{ i.first_seen|local }}</td><td>{{ i.last_seen|local }}</td></tr>{% endfor %}</tbody></table></div>
+<div class="card flat"><div class="hd"><h2>Services</h2></div>
+  {% if services %}<table class="t"><thead><tr><th>Port</th><th>Service</th><th>State</th><th>First seen</th><th>Last seen</th></tr></thead><tbody>{% for s in services %}
+  <tr><td class="mono">{{ s.port }}/{{ s.proto }}</td><td>{{ s.name }} {{ s.product }} {{ s.version }}{% if s.port in sensitive %} <span class="badge sev-medium">{{ sensitive[s.port] }}</span>{% endif %}</td>
+  <td>{{ 'open' if s.open_now else 'not open at last scan' }}</td><td>{{ s.first_seen|local }}</td><td>{{ s.last_seen|local }}</td></tr>{% endfor %}</tbody></table>
+  {% else %}<div class="empty">No port scan has been run against this device.</div>{% endif %}</div>
+<div class="grid g2">
+<div class="card flat"><div class="hd"><h2>Findings</h2></div>{% if alerts %}<table class="t"><tbody>{% for a in alerts %}<tr><td style="width:70px">{{ sev(a.severity) }}</td><td><a href="/alerts/{{ a.id }}">{{ a.title }}</a><div class="mut small">{{ pill(a.status) }} {{ a.updated_at|ago }}</div></td></tr>{% endfor %}</tbody></table>{% else %}<div class="empty">None.</div>{% endif %}</div>
+<div class="card flat"><div class="hd"><h2>Scans that included it</h2></div>{% if scans %}<table class="t"><tbody>{% for s in scans %}<tr><td><a href="/scans/{{ s.id }}">#{{ s.id }}</a> {{ s.kind }}</td><td>{{ pill(s.status) }}</td><td>{{ (s.finished_at or s.created_at)|local }}</td></tr>{% endfor %}</tbody></table>{% else %}<div class="empty">None.</div>{% endif %}</div>
+</div>
+<div class="card flat"><div class="hd"><h2>Observation timeline</h2><span class="mut small">Evidence is append-only: nothing here is overwritten.</span></div>
+  <table class="t"><thead><tr><th>When</th><th>Source</th><th>IP</th><th>MAC</th><th>Hostname</th><th>Observed from</th></tr></thead><tbody>
+  {% for o in obs %}<tr><td class="nowrap">{{ o.observed_at|local }}</td><td>{{ src_labels[o.source][0] if o.source in src_labels else o.source }}</td><td class="mono">{{ o.ip or '' }}</td><td class="mono">{{ o.mac or '' }}</td><td>{{ o.hostname or '' }}</td><td>{{ o.vantage }}</td></tr>{% endfor %}</tbody></table></div>
+{% endblock %}

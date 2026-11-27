@@ -1,0 +1,78 @@
+{% extends "base.html" %}{% from "_m.html" import ico %}
+{% block title %}Settings{% endblock %}{% block heading %}{{ ico('settings') }} Settings and audit{% endblock %}
+{% block sub %}Policies and rules, baseline, demo data, active configuration and the audit log.{% endblock %}
+{% block content %}
+<div class="grid g2">
+<div class="card"><h2>Baseline</h2>
+  <p>{% if baseline %}A baseline is set. New devices and new services now raise findings.{% else %}No baseline yet (learning mode). Review the device list, then approve what you recognise.{% endif %}</p>
+  <form method="post" action="/settings/baseline" data-confirm="Approve every device currently in the inventory as the baseline?"><button class="btn pri">{{ 'Reset baseline to current devices' if baseline else 'Approve all current devices as the baseline' }}</button></form></div>
+<div class="card"><h2>Demo network</h2><p class="mut">A synthetic college network for rehearsals and as a fallback if the real network is unavailable. It runs through the real detection code and is clearly marked DEMO.</p>
+  {% if demo %}<form method="post" action="/settings/demo" data-confirm="Remove all demo data?"><input type="hidden" name="action" value="clear"><button class="btn dng">Remove demo data</button></form>
+  {% else %}<form method="post" action="/settings/demo"><input type="hidden" name="action" value="load"><button class="btn" {{ 'disabled' if devices else '' }}>Load demo network</button></form>{% if devices %}<p class="mut small" style="margin-top:8px">Only available while the inventory is empty.</p>{% endif %}{% endif %}</div>
+</div>
+<div class="card" id="policies"><h2>{{ ico('shield-alert') }} Policies and rules</h2>
+  <p class="mut">Write the rules. Netrik raises a finding when evidence shows one has been broken: a scan finds a forbidden service, or a device asks for a restricted website. Findings name their evidence and say what is not known.</p>
+  <div class="card flat" style="margin:14px 0">
+  {% if prules %}<table class="t"><thead><tr><th>Type</th><th>Rule</th><th>Applies to</th><th>Severity</th><th>Status</th><th></th></tr></thead><tbody>
+  {% for r in prules %}<tr class="rulerow {{ '' if r.enabled else 'off' }}">
+    <td>{{ {'site':'Restricted website','zone_deny':'Zone to zone','port_forbid':'Forbidden port'}[r.kind] }}</td>
+    <td><b>{{ r.name }}</b><div class="mut small mono">{% if r.kind == 'site' %}{{ r.domains|replace(',', ', ') }}{% elif r.kind == 'zone_deny' %}{{ r.from_zone }} to {{ r.to_zone }}{% if r.ports %}, ports {{ r.ports }}{% else %}, all ports{% endif %}{% else %}port {{ r.ports }}{% endif %}{% if r.block %} &middot; blocked by DNS monitor{% endif %}</div></td>
+    <td>{{ r.zone or 'See rule' }}</td><td><span class="badge sev-{{ r.severity }}">{{ r.severity }}</span></td><td>{{ 'active' if r.enabled else 'paused' }}</td>
+    <td class="right nowrap"><form class="inline" method="post" action="/settings/policy/{{ r.id }}/toggle"><button class="btn sm">{{ 'Pause' if r.enabled else 'Resume' }}</button></form>
+      <form class="inline" method="post" action="/settings/policy/{{ r.id }}/delete" data-confirm="Delete this rule? Findings already raised stay in the list."><button class="btn sm dng">Delete</button></form></td></tr>{% endfor %}</tbody></table>
+  {% else %}<div class="empty">{{ ico('shield-alert') }}No rules yet. Add one below.</div>{% endif %}</div>
+  <form method="post" action="/settings/policy/add" class="formgrid">
+    <div><label>Rule type</label><select name="kind" data-switch><option value="site">Restricted website</option><option value="zone_deny">One zone must not reach another</option><option value="port_forbid">A port must not be open</option></select></div>
+    <div><label>Name (optional)</label><input type="text" name="name" maxlength="80" placeholder="e.g. No social media in labs"></div>
+    <div class="full" data-when="site"><label>Websites (comma or space separated; *.example.com covers subdomains)</label><input type="text" name="domains" placeholder="facebook.com, instagram.com, *.betting-site.com" class="mono"></div>
+    <div data-when="site port_forbid"><label>Applies to zone</label><select name="zone"><option>All zones</option>{% for z in zone_list %}<option>{{ z }}</option>{% endfor %}</select></div>
+    <div data-when="zone_deny"><label>From zone</label><select name="from_zone">{% for z in zone_list %}<option>{{ z }}</option>{% endfor %}</select></div>
+    <div data-when="zone_deny"><label>Must not reach zone</label><select name="to_zone">{% for z in zone_list %}<option>{{ z }}</option>{% endfor %}</select></div>
+    <div data-when="zone_deny port_forbid"><label>Ports{% if True %} <span class="mut">(e.g. 23 or 445,3389; empty = all ports for zone rules)</span>{% endif %}</label><input type="text" name="ports" placeholder="23" class="mono"></div>
+    <div><label>Severity of the finding</label><select name="severity"><option value="high">High</option><option value="medium">Medium</option><option value="low">Low</option></select></div>
+    <div data-when="site" style="align-self:end"><label class="check"><input type="checkbox" name="block" value="1"> Also refuse the name in the DNS monitor</label></div>
+    <div class="full"><button class="btn pri">{{ ico('plus', 'sm') }} Add rule</button></div>
+  </form>
+</div>
+<div class="grid g2">
+  <form class="card" method="post" action="/settings/policy/test"><h2>{{ ico('flask-conical') }} Test a rule</h2>
+    <p class="mut small">Rehearse the alert without waiting for real traffic. This records clearly labelled <b>test events</b>. Real evidence comes from DNS logs, proxy logs (Sources), or the DNS monitor.</p>
+    <div class="field"><label>Send the test visit from</label><select name="scope" data-switch>
+      <option value="device">One device</option><option value="segment_of">All devices in the same segment as the chosen device</option>
+      <option value="segment">All devices in a segment I choose</option><option value="all">Every device on the network</option></select></div>
+    <div class="field" data-when="device segment_of"><label>Device</label><select name="client">{% for d in test_devices if d.ip %}<option value="{{ d.id }}">{{ d.label }} ({{ d.ip }})</option>{% endfor %}</select></div>
+    <div class="field" data-when="segment"><label>Segment</label><select name="zone">{% for z in zone_list %}<option>{{ z }}</option>{% endfor %}</select></div>
+    <div class="field"><label>Website visited</label><input type="text" name="domain" placeholder="facebook.com" class="mono"></div>
+    <div class="field" data-when="segment_of segment all"><label class="check"><input type="checkbox" name="skip_infra" value="1" checked> Skip the gateway and this machine</label></div>
+    <button class="btn pri">Send test visit</button></form>
+  <div class="card"><h2>{{ ico('radar') }} DNS monitor <span class="badge {{ 'st-ok' if dns.running else 'st-stale' }}" style="margin-left:6px">{{ 'listening on port %s'|format(dns.port) if dns.running else 'stopped' }}</span></h2>
+    <p class="mut small">A small DNS service on this machine. Point a device's DNS server at it and every lookup is checked against your website rules: a restricted site raises a finding at once, and rules marked "refuse" get no answer. Other lookups pass through to <span class="mono">{{ dns_cfg.upstream }}</span> unchanged. Only requests that match a rule are stored.</p>
+    {% if dns.running %}<p class="small">Queries seen {{ dns.queries }}, matched {{ dns.matched }}. Set a test device's DNS server to <b class="mono">{{ my_ips|join(' or ') or 'this machine' }}</b>{% if dns.port != 53 %} (it must support port {{ dns.port }}){% endif %}.</p>
+    <form method="post" action="/settings/dns"><input type="hidden" name="action" value="stop"><button class="btn dng">Stop monitor</button></form>
+    {% else %}<form method="post" action="/settings/dns"><input type="hidden" name="action" value="start"><button class="btn pri">Start monitor on port {{ dns_cfg.port }}</button></form>
+    <p class="mut small" style="margin-top:10px">Local quick test: <span class="mono">dig @127.0.0.1 -p {{ dns_cfg.port }} facebook.com</span></p>{% endif %}</div>
+</div>
+{% if web_events %}<div class="card flat"><div class="hd"><h2>{{ ico('globe') }} Recent restricted-site requests</h2><span class="mut small">Only requests that matched a rule are stored.</span></div>
+<table class="t"><thead><tr><th>When</th><th>Device</th><th>Website</th><th>Evidence source</th></tr></thead><tbody>{% for w in web_events %}<tr><td class="nowrap">{{ w.ts|local }}</td><td>{{ w.label or w.client_ip }} <span class="mut small mono">{{ w.client_ip }}</span></td><td class="mono">{{ w.domain }}</td><td>{{ w.source }}{% if w.blocked %} (refused){% endif %}</td></tr>{% endfor %}</tbody></table></div>{% endif %}
+<div class="card" id="reset"><h2>{{ ico('refresh-cw') }} Reset and cleanup</h2>
+  <p class="mut">Delete data you no longer want, or start completely fresh. Your login and the audit log are always kept. Deleting cannot be undone.</p>
+  <div class="row" style="margin-bottom:14px">
+    <form method="post" action="/settings/reset" data-confirm="Delete ALL scans and their saved output?"><input type="hidden" name="what" value="scans"><button class="btn">Delete all scans</button></form>
+    <form method="post" action="/settings/reset" data-confirm="Delete ALL findings?"><input type="hidden" name="what" value="findings"><button class="btn">Delete all findings</button></form>
+    <form method="post" action="/settings/reset" data-confirm="Delete ALL devices, evidence and findings?"><input type="hidden" name="what" value="devices"><button class="btn">Delete all devices</button></form>
+    <form method="post" action="/settings/reset" data-confirm="Delete ALL policy rules?"><input type="hidden" name="what" value="rules"><button class="btn">Delete all rules</button></form>
+  </div>
+  <form method="post" action="/settings/reset" class="row" data-confirm="This erases everything except your login. Continue?"><input type="hidden" name="what" value="everything">
+    <div><label>Fresh start: type RESET to erase devices, scans, findings, evidence, rules and baseline</label><input type="text" name="confirm" placeholder="RESET" autocomplete="off"></div>
+    <div class="auto"><button class="btn dng">Reset everything</button></div></form>
+  <p class="mut small" style="margin-top:12px">To remove a single device or scan, use the Delete button on its own page.</p>
+</div>
+<div class="card"><h2>Active configuration (config.yaml)</h2><dl class="kv">
+  <dt>This machine</dt><dd>{{ collector }}, in zone <b>{{ vantage }}</b></dd><dt>Authorised ranges</dt><dd class="mono">{{ allowed|join(', ') or 'none' }}</dd>
+  <dt>Zones</dt><dd>{{ zones|join(', ') }}</dd>
+  <dt>Policy (deny)</dt><dd>{% for r in rules %}{{ r['from'] }} to {{ r.to }} {{ r.ports|join(',') or 'all ports' }}<br>{% else %}none defined{% endfor %}</dd>
+  <dt>Stale after</dt><dd>{{ cfg.stale_hours }} hours</dd><dt>Scan rate cap</dt><dd>{{ cfg.max_rate }} packets/s &middot; max {{ cfg.max_targets }} addresses per scan</dd>
+  <dt>Nmap privileges</dt><dd>{{ 'raw sockets enabled' if cfg.nmap_privileged else 'unprivileged (connect scans)' }}</dd></dl></div>
+<div class="card flat"><div class="hd"><h2>Audit log</h2></div><table class="t"><thead><tr><th>When</th><th>User</th><th>Action</th><th>Detail</th></tr></thead><tbody>
+{% for a in audit %}<tr><td class="nowrap">{{ a.ts|local }}</td><td>{{ a.user }}</td><td>{{ a.action }}</td><td class="mut small">{{ a.detail }}</td></tr>{% endfor %}</tbody></table></div>
+{% endblock %}

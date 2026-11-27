@@ -1,0 +1,39 @@
+{% extends "base.html" %}{% from "_m.html" import ico, sev %}
+{% block title %}Simulator{% endblock %}{% block heading %}{{ ico('flask-conical') }} Incident simulator{% endblock %}
+{% block sub %}Explore hypothetical incidents on a copy of the model. Nothing real is touched.{% endblock %}
+{% block content %}
+<div class="note warn">The simulator works on a copy of the current model. It never scans, changes or attacks anything, and nothing here is saved as a real finding. Results are hypothetical.</div>
+{% if error %}<div class="flash err">{{ error }}</div>{% endif %}
+<form class="card" method="post" action="/simulator">
+  <h2>Choose a scenario</h2>
+  <div class="row">
+    <div style="flex:2"><label>Scenario</label><select name="scenario" id="sim-scenario">{% for k, s in scenarios.items() %}<option value="{{ k }}" {{ 'selected' if form.get('scenario') == k }}>{{ s.title }}</option>{% endfor %}</select></div>
+    <div data-for="unrecognised"><label>Zone</label><select name="zone">{% for z in zones %}<option {{ 'selected' if form.get('zone') == z }}>{{ z }}</option>{% endfor %}</select></div>
+    <div data-for="unrecognised"><label>Device name</label><input type="text" name="name" value="{{ form.get('name', 'Unknown laptop') }}" maxlength="40"></div>
+    <div data-for="exposure failure restrict"><label>Device</label><select name="device">{% for d in devices %}<option value="{{ d.id }}" {{ 'selected' if form.get('device')|string == d.id|string }}>{{ d.label }} ({{ d.zone }})</option>{% endfor %}</select></div>
+    <div data-for="exposure restrict"><label>Service</label><select name="port">{% for p, n in sensitive.items() %}<option value="{{ p }}" {{ 'selected' if form.get('port')|string == p|string }}>{{ p }} - {{ n }}</option>{% endfor %}</select></div>
+    <div data-for="exposure"><label>Reachable from zone</label><select name="from_zone">{% for z in zones %}<option {{ 'selected' if (form.get('from_zone') or vantage) == z }}>{{ z }}</option>{% endfor %}</select></div>
+    <div class="auto"><button class="btn pri">Run simulation</button></div>
+  </div>
+</form>
+{% if result %}
+<div class="hypo"><b class="tag">HYPOTHETICAL - NOT AN OBSERVED INCIDENT</b>
+  <h2 style="margin:6px 0 8px;font-size:17px">{{ result.title }}</h2>
+  <ul class="plain">{% for n in result.narrative %}<li>{{ n }}</li>{% endfor %}</ul></div>
+<div class="stage-wrap" style="margin-bottom:16px"><div class="cywrap"><div id="cy" style="height:560px;min-height:480px"></div><div id="topo-tip" class="tip"></div></div>
+<div id="panel" style="height:560px;min-height:480px"><h2>Affected assets</h2><p class="mut">Pulsing amber rings mark assets the scenario touches. A dashed amber circle is the simulated device. Click any device for details.</p></div></div>
+<div class="ba">
+  <div class="card"><h2>Before <span>(current state, {{ result.before.findings|length }} finding(s))</span></h2>
+    {% for f in result.before.findings %}<div class="finding">{{ sev(f.severity) }} {{ f.text }}</div>{% else %}<p class="mut">No findings in the current model.</p>{% endfor %}</div>
+  <div class="card"><h2>After <span>(simulated, {{ result.after.findings|length }} finding(s))</span></h2>
+    {% for f in result.after.findings %}<div class="finding">{{ sev(f.severity) }} {{ f.text }}</div>{% else %}<p class="mut">No findings in the simulated state.</p>{% endfor %}</div>
+</div>
+<div class="grid g2" style="margin-top:16px">
+  <div class="card"><h2>What to do</h2><p><b>{{ result.advice.title }}</b></p><p>{{ result.advice.action }}</p><h3>How to verify</h3><p>{{ result.advice.verify }}</p></div>
+  <div class="card"><h2>Limits of this simulation</h2><ul class="plain">{% for l in result.limits %}<li>{{ l }}</li>{% endfor %}</ul></div>
+</div>
+<script type="application/json" id="graph-data">{{ graph|tojson }}</script>
+<script type="application/json" id="sim-data">{{ {'affected': result.affected, 'added': result.added}|tojson }}</script>
+{% endif %}
+{% endblock %}
+{% block scripts %}{% if result %}<script src="/static/cytoscape.min.js"></script><script src="/static/topology.js"></script>{% endif %}{% endblock %}

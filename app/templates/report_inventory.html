@@ -1,0 +1,10 @@
+<!doctype html><html lang="en"><head><meta charset="utf-8"><title>Netrik network visibility report</title>
+<style>body{font:14px/1.5 system-ui,Segoe UI,Arial,sans-serif;color:#1b2430;max-width:1100px;margin:30px auto;padding:0 20px}h1{font-size:22px}h2{font-size:16px;border-bottom:1px solid #ccd3dc;padding-bottom:4px;margin-top:26px}
+table{border-collapse:collapse;width:100%}th,td{text-align:left;border-bottom:1px solid #e1e6ec;padding:5px 8px;font-size:12.5px}th{background:#f2f5f8}.m{font-family:Consolas,monospace}.mut{color:#5d6b7b}.note{border-left:3px solid #999;padding:6px 12px;background:#f6f7f9;margin:12px 0}</style></head><body>
+<h1>Network visibility report</h1><p class="mut">Generated {{ generated|local }} from {{ collector }}.</p>
+<div class="note">{{ vis.total }} device(s) have evidence from at least one source. This is not a guaranteed count of all connected devices: anything no source reported is absent from this list.</div>
+<h2>Coverage</h2><table><tr><th>Responded to active scan</th><th>Infrastructure only</th><th>Passive only</th><th>Neighbour table only</th><th>Not seen in {{ vis.window }} h</th></tr>
+<tr><td>{{ vis.cats.active|length }}</td><td>{{ vis.cats.infra|length }}</td><td>{{ vis.cats.passive|length }}</td><td>{{ vis.cats.neighbour|length }}</td><td>{{ vis.cats.stale|length }}</td></tr></table>
+<h2>Inventory</h2><table><tr><th>Device</th><th>IP</th><th>MAC</th><th>Zone</th><th>Role</th><th>Status</th><th>Sources</th><th>Open ports</th><th>Last seen</th></tr>
+{% for r in rows %}<tr><td>{{ r.label }}</td><td class="m">{{ r.ip }}</td><td class="m">{{ r.mac }}</td><td>{{ r.zone }}</td><td>{{ r.kind }}</td><td>{{ r.status }}</td><td>{{ r.sources }}</td><td class="m">{{ r.open_ports }}</td><td>{{ r.last_seen|local }}</td></tr>{% endfor %}</table>
+</body></html>

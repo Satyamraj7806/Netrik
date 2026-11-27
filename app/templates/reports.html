@@ -1,0 +1,12 @@
+{% extends "base.html" %}{% from "_m.html" import ico %}
+{% block title %}Reports{% endblock %}{% block heading %}{{ ico('file-text') }} Reports and exports{% endblock %}
+{% block sub %}Exports for administrators: PDF, HTML, CSV, JSON, and raw Nmap output.{% endblock %}
+{% block content %}
+<div class="card"><h2>Network visibility report</h2><p class="mut">The current inventory with sources, status and coverage. Suitable for the administrator.</p>
+  <a class="btn pri" href="/export/inventory.pdf">PDF</a> <a class="btn" href="/export/inventory.html">HTML</a> <a class="btn" href="/export/inventory.csv">CSV</a> <a class="btn" href="/export/inventory.json">JSON</a></div>
+<div class="card flat"><div class="hd"><h2>Scan reports</h2></div>
+{% if scans %}<table class="t"><thead><tr><th>#</th><th>Type</th><th>Target</th><th>Finished</th><th>Export</th></tr></thead><tbody>{% for s in scans %}
+<tr><td><a href="/scans/{{ s.id }}">#{{ s.id }}</a></td><td>{{ s.kind }}</td><td class="mono">{{ s.target }}</td><td>{{ s.finished_at|local }}</td>
+<td><a href="/scans/{{ s.id }}/export/pdf">PDF</a> &middot; <a href="/scans/{{ s.id }}/export/html">HTML</a> &middot; <a href="/scans/{{ s.id }}/export/json">JSON</a> &middot; <a href="/scans/{{ s.id }}/export/xml">XML</a> &middot; <a href="/scans/{{ s.id }}/export/txt">TXT</a></td></tr>{% endfor %}</tbody></table>
+{% else %}<div class="empty">Completed scans appear here.</div>{% endif %}</div>
+{% endblock %}

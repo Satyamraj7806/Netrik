@@ -1,0 +1,25 @@
+{% extends "base.html" %}{% from "_m.html" import ico %}
+{% block title %}Sources{% endblock %}{% block heading %}{{ ico('upload') }} Evidence sources{% endblock %}
+{% block sub %}Where evidence comes from. Combining sources reduces blind spots.{% endblock %}
+{% block content %}
+<div class="note">Each source sees the network differently. Combining them reduces blind spots; none of them is complete on its own.</div>
+<div class="card flat"><div class="hd"><h2>Observations received</h2></div>{% if rows %}<table class="t"><thead><tr><th>Source</th><th>Observations</th><th>Last received</th><th>Meaning</th></tr></thead><tbody>
+{% for r in rows %}<tr><td>{{ src[r.source][0] if r.source in src else r.source }}</td><td class="mono">{{ r.n }}</td><td>{{ r.last|local }}</td><td class="mut small">{{ src[r.source][1] if r.source in src else '' }}</td></tr>{% endfor %}</tbody></table>
+{% else %}<div class="empty">No observations yet.</div>{% endif %}</div>
+<div class="grid g2">
+<form class="card" method="post" action="/sources/import" enctype="multipart/form-data"><h2>Import a file</h2>
+  <div class="field"><label>What is it?</label><select name="type">
+    <option value="ap">Wi-Fi / access-point client list (CSV: mac, ip, hostname, ssid, signal)</option>
+    <option value="dhcp">DHCP leases (dnsmasq, ISC dhcpd, or CSV)</option>
+    <option value="zeek">Zeek conn.log (adds observed communication)</option>
+    <option value="web">Web or DNS log (checked against your website rules)</option>
+    <option value="bundle">Collector bundle from another Netrik machine (JSON)</option></select></div>
+  <div class="field"><label>File (max 5 MB)</label><input type="file" name="file" required></div><button class="btn pri">Import</button>
+  <p class="mut small" style="margin-top:12px">Most routers can export their client list as CSV from the admin page. Imported data is treated as evidence from that source at the time of import.</p></form>
+<div class="card"><h2>Automatic sources</h2>
+  <ul class="plain"><li><b>Active scan and neighbour table:</b> read during every discovery scan.</li>
+  <li><b>DHCP lease files:</b> {% if leases %}<span class="mono">{{ leases|join(', ') }}</span>{% else %}none configured. Add <span class="mono">dhcp_lease_files</span> in config.yaml.{% endif %}</li>
+  <li><b>Observed flows stored:</b> {{ flows }}</li></ul>
+  <h3>A second network segment</h3><p class="mut small">Copy this project to a laptop inside that segment and run:<br><span class="mono">python -m app.cli collect --target 10.0.5.0/24 --out bundle.json</span><br>Then import <span class="mono">bundle.json</span> here as a collector bundle. Results from other locations are labelled with their origin.</p></div>
+</div>
+{% endblock %}

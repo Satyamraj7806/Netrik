@@ -1,0 +1,75 @@
+{% extends "base.html" %}{% from "_m.html" import ico, pill, sev %}
+{% block title %}Scan #{{ scan.id }}{% endblock %}{% block heading %}Scan #{{ scan.id }} {{ pill(scan.status) }}{% endblock %}
+{% block actions %}
+{% if scan.status not in ('queued','running') %}<form method="post" action="/scans/{{ scan.id }}/delete" data-confirm="Delete this scan and its saved output?"><button class="btn dng">Delete scan</button></form>{% endif %}
+{% if scan.status in ('queued','running') %}<form method="post" action="/scans/{{ scan.id }}/cancel" data-confirm="Cancel this scan?"><button class="btn dng">Cancel</button></form>{% endif %}
+{% if prev %}<a class="btn" href="/compare?a={{ prev.id }}&b={{ scan.id }}">Compare with #{{ prev.id }}</a>{% endif %}
+{% if scan.status in ('complete','partial') and scan.kind != 'names' %}
+<a class="btn" href="/scans/{{ scan.id }}/export/txt">TXT</a><a class="btn" href="/scans/{{ scan.id }}/export/xml">XML</a><a class="btn" href="/scans/{{ scan.id }}/export/json">JSON</a><a class="btn" href="/scans/{{ scan.id }}/export/html">HTML</a><a class="btn" href="/scans/{{ scan.id }}/export/pdf">PDF</a>
+{% endif %}
+{% endblock %}
+{% block content %}
+{% if scan.status in ('queued','running') %}
+<div class="card prog {{ 'working' if scan.status == 'running' }}" id="scan-live" data-id="{{ scan.id }}">
+  <div class="ringbox"><svg class="ring" viewBox="0 0 120 120"><circle class="bg" cx="60" cy="60" r="52"/><circle class="fg" cx="60" cy="60" r="52"/></svg>
+    <div class="ring-txt"><b>0%</b><span>overall</span></div></div>
+  <div>
+    <div class="stage"><b>Starting</b><span></span></div>
+    <div class="eta">Preparing the scan…</div>
+    <div class="metrics"><div>Elapsed<b data-m="elapsed">0:00</b></div><div>Hosts up<b data-m="hosts">-</b></div><div>Open ports seen<b data-m="ports">0</b></div></div>
+    <div class="bar big ind"><i></i></div>
+    <ol class="steps"></ol>
+  </div>
+  <div class="feed-wrap"><h3>Live activity</h3><ul class="feed"></ul></div>
+</div>
+{% endif %}
+{% if scan.error %}<div class="note bad"><b>Scan problem:</b> {{ scan.error }}</div>{% endif %}
+{% for n in notes %}<div class="note {{ '' if n.startswith('Probe') else 'warn' }}">{{ n }}</div>{% endfor %}
+<div class="card"><dl class="kv">
+  <dt>Type / profile</dt><dd>{{ scan.kind }}{% if scan.kind != 'names' %} / {{ profile_name }}{% endif %}{% if scan.live_only %}, known live hosts only{% endif %}{% if scan.ports %} (ports {{ scan.ports }}){% endif %}</dd>
+  <dt>Target</dt><dd class="mono">{{ scan.target }}</dd><dt>Run from</dt><dd>{{ collector }} (all results describe this location only)</dd>
+  <dt>Requested by</dt><dd>{{ scan.requested_by }} at {{ scan.created_at|local }}</dd>
+  <dt>Duration</dt><dd>{{ scan.started_at|local }} to {{ scan.finished_at|local if scan.finished_at else 'in progress' }}</dd>
+  {% if scan.command %}<dt>Command</dt><dd class="mono small">{{ scan.command }}</dd>{% endif %}
+  {% if summary %}<dt>Summary</dt><dd>{{ summary.get('hosts_up', 0) }} hosts responded, {{ summary.get('open_ports', 0) }} open ports, {{ summary.get('new_devices', 0) }} new device(s), {{ summary.get('names_found', 0) }} name(s) learned, {{ summary.get('alerts', 0) }} finding(s). Evidence sources: {{ summary.get('sources', [])|join(', ') }}.</dd>{% endif %}</dl></div>
+{% if summary.get('timeline') and summary.timeline.get('phases') %}{% set tl = summary.timeline %}{% set tot = (tl.phases|sum(attribute='seconds')) or 1 %}
+<div class="card"><h2>{{ ico('clock') }} Where the time went{% if tl.get('elapsed') %} <span class="mut small" style="font-weight:400">total {{ tl.elapsed|round|int }} s, from Nmap's own timestamps</span>{% endif %}</h2>
+  <div class="timeline">{% for ph in tl.phases %}<div style="flex:{{ [ph.seconds, 1]|max }};opacity:{{ 0.45 + 0.1 * loop.index0 }}" title="{{ ph.task }}: {{ ph.seconds }} s"></div>{% endfor %}</div>
+  <div class="small mut" style="display:flex;gap:18px;flex-wrap:wrap;margin-top:8px">{% for ph in tl.phases %}<span>{{ ph.task }} <b class="mono" style="color:var(--text)">{{ ph.seconds }} s</b></span>{% endfor %}</div></div>
+{% endif %}
+{% if scan.kind == 'names' and scan.status == 'complete' %}
+<div class="card"><h2>{{ ico('search') }} Hostname lookup: {{ summary.get('names_found', 0) }} of {{ summary.get('looked_up', 0) }} addresses answered</h2>
+  <p class="mut small" style="margin-bottom:6px">A name is a label, not proof of identity. For each address Netrik asked, in order: your router's DNS, then the device itself over mDNS, NetBIOS and LLMNR, then UPnP discovery for the whole network.</p>
+  {% set m = summary.get('meta', {}) %}<p class="mut small">DNS servers asked: <span class="mono">{{ m.get('dns_servers', [])|join(', ') or 'none found' }}</span> &middot; interfaces used for discovery: <span class="mono">{{ m.get('interfaces', [])|join(', ') or 'none' }}</span> &middot; devices that announced themselves: mDNS {{ m.get('mdns_devices', 0) }}, UPnP {{ m.get('upnp_devices', 0) }}</p></div>
+{% if summary.get('matrix') %}<div class="card flat"><table class="t"><thead><tr><th>IP</th><th>Name used</th><th>DNS</th><th>mDNS</th><th>NetBIOS</th><th>LLMNR</th><th>UPnP</th></tr></thead><tbody>
+{% for r in summary.matrix %}<tr><td class="mono">{{ r.ip }}</td><td>{% if r.name %}<b>{{ r.name }}</b>{% else %}<span class="mut">no name found</span>{% endif %}{% if r.extras.get('kind') %} <span class="chip">{{ r.extras.kind }}</span>{% endif %}</td>
+{% for k in ['dns','mdns','netbios','llmnr','upnp'] %}<td class="small">{% if r.tried.get(k) %}<span class="st-ok badge" style="text-transform:none">{{ r.tried[k] }}</span>{% elif k in r.tried %}<span class="mut">no answer</span>{% else %}<span class="dim">{{ '-' if r.name else 'not asked' }}</span>{% endif %}</td>{% endfor %}</tr>{% endfor %}</tbody></table></div>
+{% if summary.get('names_found', 0) < summary.get('looked_up', 0) %}<div class="note">Devices with no answer at all (many phones, some IoT) simply do not announce a name. The reliable way to name them is the router's own client list: import its DHCP list or Wi-Fi client list under <a href="/sources">Sources</a>.</div>{% endif %}{% endif %}
+{% elif scan.status in ('complete','partial') %}
+<div class="tabs"><a class="{{ 'on' if tab == 'interpretation' }}" href="?tab=interpretation">Interpretation</a><a class="{{ 'on' if tab == 'raw' }}" href="?tab=raw">Raw Nmap output</a><a class="{{ 'on' if tab == 'findings' }}" href="?tab=findings">Findings ({{ alerts|length }})</a></div>
+{% if tab == 'raw' %}
+  {% if raw %}<div style="display:flex;justify-content:space-between;margin-bottom:8px"><span class="mut small">Exactly as Nmap printed it. Shown as plain text.</span><button class="btn sm" data-copy="#raw-output">Copy</button></div><pre class="pre" id="raw-output">{{ raw }}</pre>
+  {% else %}<div class="empty">No raw output is stored for this scan.</div>{% endif %}
+{% elif tab == 'findings' %}
+  {% if alerts %}<div class="card flat"><table class="t"><tbody>{% for a in alerts %}<tr><td style="width:70px">{{ sev(a.severity) }}</td><td><a href="/alerts/{{ a.id }}">{{ a.title }}</a><div class="mut small">{{ a.detail.get('what', '') }}</div></td></tr>{% endfor %}</tbody></table></div>
+  {% else %}<div class="empty">This scan raised no findings.</div>{% endif %}
+{% else %}
+  {% if hosts %}
+  <p class="mut">{{ hosts|length }} host(s) responded to this scan from {{ collector }}. A silent address is not proof that nothing is there.</p>
+  {% for h in hosts %}
+  <div class="hostcard"><div class="hd"><div><b class="mono">{{ h.ip }}</b> {% if h.hostname %}<span class="mut">{{ h.hostname }}</span>{% endif %}{% if h.device_id %} &middot; <a href="/devices/{{ h.device_id }}">device profile</a>{% endif %}</div>
+    <div class="mut small">{{ h.mac or 'no MAC visible (routed network)' }} {{ h.vendor or '' }}</div></div>
+    <div class="bd">
+      <p><b>{{ h.kind }}</b> <span class="mut">({{ h.classification.confidence }} confidence)</span></p>
+      {% if h.ports is none %}<p class="mut">Responded to discovery. No port scan was run, so services are unknown.</p>
+      {% else %}{% set openp = h.ports|selectattr('state','equalto','open')|list %}
+        {% if openp %}<table class="t"><thead><tr><th>Port</th><th>Service</th><th>What it means</th></tr></thead><tbody>{% for p in openp %}
+        <tr><td class="mono">{{ p.port }}/{{ p.protocol }}</td><td>{{ p.service }} {{ p.product }} {{ p.version }}</td><td class="mut">{{ p.note or 'Open from this location. Not a vulnerability by itself.' }}</td></tr>{% endfor %}</tbody></table>
+        {% else %}<p class="mut">No open ports were found among the ports scanned.</p>{% endif %}{% endif %}
+      <details style="margin-top:10px"><summary class="mut small">Evidence and limits</summary><ul class="plain small">{% for e in h.classification.evidence %}<li>{{ e }}</li>{% endfor %}</ul><p class="mut small">{{ h.classification.limitation }}</p></details>
+    </div></div>
+  {% endfor %}
+  {% else %}<div class="empty">No hosts responded.</div>{% endif %}
+{% endif %}
+{% endif %}
+{% endblock %}

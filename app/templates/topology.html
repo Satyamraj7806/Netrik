@@ -1,0 +1,32 @@
+{% extends "base.html" %}{% from "_m.html" import ico %}
+{% block title %}Topology{% endblock %}{% block heading %}{{ ico('network') }} Network topology{% endblock %}
+{% block sub %}Internet, gateway, network segments, then devices. Lines appear between devices only where there is evidence.{% endblock %}
+{% block content %}
+{% if not graph.has_data %}
+<div class="card"><div class="empty">{{ ico('network') }}No devices yet. Run a discovery scan, import a client list, or load the demo network in Settings.</div></div>
+{% else %}
+<div class="toolbar">
+  <div class="sbox">{{ ico('search', 'sm') }}<input type="search" id="topo-search" placeholder="Find a device, IP or role (Enter to zoom)" autocomplete="off"></div>
+  <select id="topo-seg" style="width:auto;min-width:170px" aria-label="Focus a segment"><option value="">All segments</option>{% for n in graph.nodes if n.data.type == 'zone' and n.data.count %}<option>{{ n.data.label }}</option>{% endfor %}</select>
+  <span class="seg-chips" role="group" aria-label="Status filter"><button class="chipbtn on" data-f="all">All</button><button class="chipbtn" data-f="new">New</button><button class="chipbtn" data-f="exposed">Exposed</button><button class="chipbtn" data-f="stale">Not seen</button></span>
+  <span class="sp"></span>
+  <span class="zoomgrp"><button class="btn sm" data-act="out" title="Zoom out">{{ ico('minus', 'sm') }}</button><button class="btn sm" data-act="in" title="Zoom in">{{ ico('plus', 'sm') }}</button>
+  <button class="btn sm" data-act="fit">{{ ico('maximize', 'sm') }} Fit</button><button class="btn sm" data-act="pause" aria-pressed="false">{{ ico('pause', 'sm') }}<span>Pause motion</span></button></span>
+</div>
+<div class="toolbar" style="margin-top:-4px">
+  <span class="mut small" style="margin-right:4px">Show:</span>
+  <label class="tog"><input type="checkbox" data-layer="link" checked><span class="sw link"></span> Hierarchy</label>
+  <label class="tog"><input type="checkbox" data-layer="tested" checked><span class="sw test"></span> Tested reachability</label>
+  <label class="tog"><input type="checkbox" data-layer="observed" checked><span class="sw obs"></span> Observed traffic</label>
+  <label class="tog"><input type="checkbox" data-layer="configured" checked><span class="sw conf"></span> Policy: deny</label>
+  <label class="tog"><input type="checkbox" data-layer="web" checked><span class="sw conf"></span> Restricted site requests</label>
+</div>
+<div class="stage-wrap">
+  <div class="cywrap"><div id="cy"></div><div id="topo-tip" class="tip"></div>
+    <div class="mapnote">Logical view, not physical cabling. Membership = inside a segment circle. Ring: green approved, amber new, red exposure or finding, grey not seen recently.</div></div>
+  <div id="panel"><div class="empty-state"><div>{{ ico('radar', 'big') }}<h2>Select a device</h2><p>Click any device to see its identity, services and findings. Hover to trace its connections.</p></div></div></div>
+</div>
+<script type="application/json" id="graph-data">{{ graph|tojson }}</script>
+{% endif %}
+{% endblock %}
+{% block scripts %}{% if graph.has_data %}<script src="/static/cytoscape.min.js"></script><script src="/static/topology.js"></script>{% endif %}{% endblock %}

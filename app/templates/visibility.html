@@ -1,0 +1,36 @@
+{% extends "base.html" %}{% from "_m.html" import ico %}
+{% block title %}Visibility{% endblock %}{% block heading %}{{ ico('eye') }} Visibility and blind spots{% endblock %}
+{% block sub %}What Netrik can and cannot observe, and which sources would close the gaps.{% endblock %}
+{% block content %}
+<div class="note warn">This page shows what Netrik can and cannot observe. A discovered-device count is never a guaranteed count of the physical devices connected. Devices no source has reported do not appear here at all.</div>
+{% set c = vis.cats %}
+<div class="kpis">
+  <div class="kpi"><div class="n">{{ c.active|length }}</div><div class="l">responded to active discovery</div></div>
+  <div class="kpi"><div class="n">{{ c.infra|length }}</div><div class="l">reported by infrastructure (DHCP / Wi-Fi), no probe response</div></div>
+  <div class="kpi"><div class="n">{{ c.passive|length }}</div><div class="l">seen by passive monitoring only</div></div>
+  <div class="kpi"><div class="n">{{ c.neighbour|length }}</div><div class="l">in the neighbour table only</div></div>
+  <div class="kpi"><div class="n">{{ c.stale|length }}</div><div class="l">previously observed, not seen in {{ vis.window }} h</div></div>
+</div>
+<div class="grid g2">
+<div class="card flat"><div class="hd"><h2>What each source can prove</h2></div><table class="t"><thead><tr><th>Source</th><th>Devices</th><th>Meaning</th></tr></thead><tbody>
+{% for k, v in src.items() %}<tr><td>{{ v[0] }}</td><td class="mono">{{ vis.per_source.get(k, 0) }}</td><td class="mut small">{{ v[1] }}</td></tr>{% endfor %}</tbody></table></div>
+<div class="card flat"><div class="hd"><h2>Coverage by zone</h2></div>
+{% if vis.zones %}<table class="t"><thead><tr><th>Zone</th><th>Devices</th>{% for k in src %}{% if vis.per_source.get(k) %}<th>{{ src[k][0] }}</th>{% endif %}{% endfor %}</tr></thead><tbody>
+{% for z, v in vis.zones.items() %}<tr><td>{{ z }}</td><td class="mono">{{ v.devices }}</td>{% for k in src %}{% if vis.per_source.get(k) %}<td class="mono">{{ v.get(k, 0) }}</td>{% endif %}{% endfor %}</tr>{% endfor %}</tbody></table>
+{% else %}<div class="empty">No data yet.</div>{% endif %}</div>
+</div>
+{% if c.infra %}<div class="card"><h2>Listed by infrastructure but silent to active probes</h2><p class="mut">Typical causes: phone firewalls, Wi-Fi client isolation, sleeping devices, or probes from a different network segment.</p>
+<p>{% for d in c.infra %}<a class="chip" href="/devices/{{ d.id }}">{{ d.label }}</a>{% endfor %}</p></div>{% endif %}
+{% if vis.unknown_identity %}<div class="card"><h2>Unknown identity ({{ vis.unknown_identity|length }})</h2><p class="mut">Randomised MAC and no hostname. These may be the same phone appearing as several devices.</p>
+<p>{% for d in vis.unknown_identity %}<a class="chip" href="/devices/{{ d.id }}">{{ d.label }}</a>{% endfor %}</p></div>{% endif %}
+{% if c.stale %}<div class="card"><h2>Previously observed, not currently seen</h2><p class="mut">Silence is not proof the device is offline. It may be asleep, moved, isolated, or hidden from the sources in use.</p>
+<p>{% for d in c.stale %}<a class="chip" href="/devices/{{ d.id }}">{{ d.label }} ({{ d.last_seen|ago }})</a>{% endfor %}</p></div>{% endif %}
+<div class="card"><h2>How to see more</h2>{% if vis.tips %}<ul class="plain">{% for t in vis.tips %}<li>{{ t }}</li>{% endfor %}</ul>{% else %}<p class="mut">All source types are reporting.</p>{% endif %}<a href="/sources">Add or import sources</a></div>
+<form class="card" method="post" action="/visibility/check"><h2>Discovery completeness check</h2>
+  <p class="mut">Paste a known inventory (MAC addresses, IPs or hostnames, one per line, for example from the lab sheet). Netrik reports which ones it has evidence for and which sources saw them. This is how you test whether Netrik is missing devices.</p>
+  <textarea name="known" placeholder="aa:bb:cc:dd:ee:ff&#10;LAB-PC-01&#10;192.168.1.15">{{ known or '' }}</textarea><div style="margin-top:10px"><button class="btn pri">Check</button></div>
+  {% if check %}<div class="note {{ 'ok' if check.pct == 100 else 'warn' }}" style="margin-top:14px"><b>{{ check.pct }}%</b> of the {{ check.found|length + check.missing|length }} known items have evidence.
+  {% if check.missing %}<br>No evidence for: <span class="mono">{{ check.missing|join(', ') }}</span>. Possible reasons: client isolation, different VLAN, randomised MAC, device off, or no source covering that segment.{% endif %}</div>
+  {% if check.found %}<table class="t"><tbody>{% for f in check.found %}<tr><td class="mono">{{ f.token }}</td><td><a href="/devices/{{ f.device_id }}">profile</a></td><td class="mut small">{{ f.sources|join(', ') }}</td></tr>{% endfor %}</tbody></table>{% endif %}{% endif %}
+</form>
+{% endblock %}

@@ -1,0 +1,25 @@
+{% extends "base.html" %}{% from "_m.html" import ico %}
+{% block title %}Duplicate devices{% endblock %}{% block heading %}{{ ico('copy') }} Duplicate devices{% endblock %}
+{% block sub %}Netrik merges devices automatically only on reliable evidence. Anything uncertain is listed here for you to decide.{% endblock %}
+{% block actions %}<a class="btn" href="/devices">Back to devices</a>
+<form method="post" action="/devices/dedupe"><button class="btn pri">{{ ico('refresh-cw', 'sm') }} Merge safe duplicates now</button></form>{% endblock %}
+{% block content %}
+<div class="card"><h2>How Netrik decides</h2>
+  <ul class="plain small mut">
+    <li><b>Merged automatically:</b> the same hardware MAC address; a device without a MAC and a device with one that held the same IP address; the same specific hostname when no stable MAC contradicts it.</li>
+    <li><b>Never merged automatically:</b> generic names (such as Galaxy-S23 or raspberrypi), random-MAC devices that were active at the same time, and two devices with different hardware MACs. One PC can have Wi-Fi and Ethernet, or these may be two machines, so a person decides.</li>
+  </ul></div>
+<div class="card flat"><div class="hd"><h2>{{ ico('git-compare') }} Needs your decision ({{ groups|length }})</h2></div>
+{% if groups %}{% for g in groups %}
+<div style="padding:16px 18px;border-bottom:1px solid var(--line)">
+  <p class="mut small" style="margin-bottom:10px">{{ g.reason }}</p>
+  <table class="t" style="margin-bottom:10px"><thead><tr><th>Device</th><th>IP</th><th>MAC address(es)</th><th>Zone</th><th>First evidence</th><th>Last evidence</th><th></th></tr></thead><tbody>
+  {% for d in g.devices %}<tr><td><a href="/devices/{{ d.id }}">{{ d.label }}</a></td><td class="mono">{{ d.ip }}</td><td class="mono">{{ d.macs|join(', ') }}</td><td>{{ d.zone }}</td><td>{{ d.first_seen|local }}</td><td>{{ d.last_seen|ago }}</td>
+    <td class="right">{% for k in g.devices if k.id != d.id and k.id == g.suggested_keep %}
+      <form method="post" action="/devices/merge" data-confirm="Merge '{{ d.label }}' into '{{ k.label }}'? Their evidence, services and findings will be combined."><input type="hidden" name="keep" value="{{ k.id }}"><input type="hidden" name="drop" value="{{ d.id }}"><button class="btn sm">Merge into {{ k.label|truncate(18) }}</button></form>{% endfor %}</td></tr>{% endfor %}</tbody></table>
+</div>{% endfor %}{% else %}<div class="empty">{{ ico('circle-check') }}No uncertain duplicates.</div>{% endif %}</div>
+<div class="card flat"><div class="hd"><h2>{{ ico('clock') }} Merge history</h2><span class="mut small">Every merge is recorded with its reason.</span></div>
+{% if merges %}<table class="t"><thead><tr><th>When</th><th>Kept</th><th>Removed record</th><th>Reason</th><th>By</th></tr></thead><tbody>{% for m in merges %}
+<tr><td class="nowrap">{{ m.ts|local }}</td><td><a href="/devices/{{ m.kept }}">#{{ m.kept }}</a></td><td class="mono">#{{ m.dropped }}</td><td>{{ m.reason }}</td><td>{{ m.user }}</td></tr>{% endfor %}</tbody></table>
+{% else %}<div class="empty">Nothing merged yet.</div>{% endif %}</div>
+{% endblock %}

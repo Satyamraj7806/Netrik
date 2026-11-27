@@ -1,0 +1,15 @@
+{% extends "base.html" %}{% from "_m.html" import ico, sev, pill %}
+{% block title %}Findings{% endblock %}{% block heading %}{{ ico('shield-alert') }} Findings{% endblock %}
+{% block sub %}Observations worth reviewing, each with evidence, what is known, and what is not.{% endblock %}
+{% block content %}
+<div class="note">A finding is an observation worth reviewing, not a confirmed incident. Each one lists its evidence, what is known and what is not.</div>
+<form class="card row" method="get">
+  <div><label>Status</label><select name="status">{% for k, v in [('active','Open and investigating'),('all','All'),('acknowledged','Acknowledged'),('resolved','Resolved'),('verified','Verified'),('false_positive','False positive')] %}<option value="{{ k }}" {{ 'selected' if st == k }}>{{ v }}</option>{% endfor %}</select></div>
+  <div><label>Severity</label><select name="severity"><option value="">Any</option>{% for s in ['high','medium','low','info'] %}<option {{ 'selected' if q.get('severity') == s }}>{{ s }}</option>{% endfor %}</select></div>
+  <div><label>Type</label><select name="type"><option value="">Any</option>{% for t in types %}<option value="{{ t }}" {{ 'selected' if q.get('type') == t }}>{{ t|replace('_',' ') }}</option>{% endfor %}</select></div>
+  <div class="auto"><button class="btn pri">Filter</button></div>
+</form>
+<div class="card flat">{% if rows %}<table class="t"><thead><tr><th>Severity</th><th>Finding</th><th>Asset</th><th>Confidence</th><th>Status</th><th>Updated</th></tr></thead><tbody>
+{% for a in rows %}<tr><td>{{ sev(a.severity) }}</td><td><a href="/alerts/{{ a.id }}">{{ a.title }}</a></td><td>{{ a.dlabel or '' }}</td><td>{{ a.confidence }}</td><td>{{ pill(a.status) }}</td><td class="nowrap">{{ a.updated_at|ago }}</td></tr>{% endfor %}</tbody></table>
+{% else %}<div class="empty">Nothing to show.</div>{% endif %}</div>
+{% endblock %}

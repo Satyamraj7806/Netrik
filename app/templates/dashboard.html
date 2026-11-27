@@ -1,0 +1,47 @@
+{% extends "base.html" %}{% from "_m.html" import ico, sev, pill %}
+{% block title %}Overview{% endblock %}{% block heading %}{{ ico('layout-dashboard') }} Overview{% endblock %}
+{% block sub %}What Netrik can see right now, and what needs a decision.{% endblock %}
+{% block actions %}<a class="btn" href="/topology">{{ ico('network', 'sm') }} Open topology</a><a class="btn pri" href="/scans">{{ ico('scan-line', 'sm') }} Run a scan</a>{% endblock %}
+{% block content %}
+{% set high = sevs.get('high', 0) %}{% set med = sevs.get('medium', 0) %}{% set low = sevs.get('low', 0) %}{% set total_f = high + med + low %}
+{% if vis.total == 0 %}
+<div class="card hero warn"><div class="hi">{{ ico('radar') }}</div><div><h2>No evidence yet</h2><span class="mut">Netrik has not observed any devices. Run a discovery scan on your own network, or import a DHCP or Wi-Fi client list.</span></div>
+<div class="acts"><a class="btn pri" href="/scans">Run first discovery scan</a><a class="btn" href="/sources">Import data</a></div></div>
+{% else %}
+<div class="card hero {{ 'bad' if high else ('warn' if total_f else '') }}">
+  <div class="hi">{{ ico('shield-alert' if total_f else 'circle-check') }}</div>
+  <div><h2>{% if high %}{{ high }} high-severity finding{{ 's' if high != 1 }} need attention{% elif total_f %}{{ total_f }} finding{{ 's' if total_f != 1 }} to review{% else %}No open findings{% endif %}</h2>
+  <span class="mut">Evidence for <b>{{ vis.total }}</b> device(s) from {{ vis.per_source.values()|select|list|length }} source type(s). This is not a guaranteed count of everything connected.
+  {% if last_scan %}Last scan finished {{ last_scan.finished_at|ago }}.{% endif %}</span></div>
+  <div class="acts"><a class="btn {{ 'pri' if total_f }}" href="/alerts">Review findings</a><a class="btn" href="/visibility">Blind spots</a></div>
+</div>
+{% if not baseline %}<div class="note warn">Learning mode: no baseline set, so new devices are recorded silently. Review the <a href="/devices">device list</a>, then set the baseline in <a href="/settings">Settings</a> to start change detection.</div>{% endif %}
+<div class="kpis">
+  <div class="kpi good"><div class="ki">{{ ico('monitor-smartphone') }}</div><div class="n" data-to="{{ vis.total }}">{{ vis.total }}</div><div class="l">devices with evidence</div></div>
+  <div class="kpi info"><div class="ki">{{ ico('radar') }}</div><div class="n" data-to="{{ vis.cats.active|length }}">{{ vis.cats.active|length }}</div><div class="l">responded to active scan</div></div>
+  <div class="kpi warn"><div class="ki">{{ ico('eye-off') }}</div><div class="n" data-to="{{ vis.cats.infra|length + vis.cats.passive|length + vis.cats.neighbour|length }}">{{ vis.cats.infra|length + vis.cats.passive|length + vis.cats.neighbour|length }}</div><div class="l">listed by other sources only</div></div>
+  <div class="kpi {{ 'bad' if high else '' }}"><div class="ki">{{ ico('shield-alert') }}</div><div class="n" data-to="{{ total_f }}">{{ total_f }}</div><div class="l">open findings ({{ high }} high, {{ med }} medium)</div></div>
+</div>
+<div class="grid g3">
+  <div class="card"><h2>Who can see what</h2>
+    <div style="display:flex;gap:18px;align-items:center;margin-top:6px">{{ donut }}<ul class="legend-list">{% for label, v, color in segs %}<li><i style="background:{{ color }}"></i>{{ label }}<b>{{ v }}</b></li>{% endfor %}</ul></div></div>
+  <div class="card"><h2>Devices with evidence, last 14 days</h2><p class="mut small">Distinct devices with at least one observation per day. A dip can mean fewer scans, not fewer devices.</p>{{ bars }}</div>
+  <div class="card"><h2>Evidence sources</h2>
+    {% for k, v in vis.per_source.items() if v %}<div style="margin-bottom:11px"><div style="display:flex;justify-content:space-between;font-size:13px"><span>{{ src_labels[k][0] }}</span><span class="mono mut">{{ v }}/{{ vis.total }}</span></div>
+      <div class="bar"><i style="width:{{ (100 * v / vis.total)|round|int }}%"></i></div></div>{% else %}<p class="mut">No sources yet.</p>{% endfor %}
+    <a href="/sources" class="small">Add or import sources</a></div>
+</div>
+{% endif %}
+<div class="grid g21">
+  <div class="card flat"><div class="hd"><h2>{{ ico('shield-alert') }} Findings needing attention</h2><a href="/alerts">All findings</a></div>
+    {% if alerts %}<table class="t"><tbody>{% for a in alerts %}
+      <tr><td style="width:80px">{{ sev(a.severity) }}</td><td><a href="/alerts/{{ a.id }}">{{ a.title }}</a><div class="mut small">{{ a.dlabel or '' }} &middot; {{ a.updated_at|ago }}</div></td></tr>{% endfor %}</tbody></table>
+    {% else %}<div class="empty">{{ ico('circle-check') }}No open findings.</div>{% endif %}</div>
+  <div class="card flat"><div class="hd"><h2>{{ ico('clock') }} Recent activity</h2></div>
+    {% if activity %}<table class="t"><tbody>{% for a in activity %}<tr><td><div>{{ a.action|replace('_',' ') }}</div><div class="mut small">{{ a.user }} &middot; {{ a.ts|ago }}</div></td></tr>{% endfor %}</tbody></table>{% else %}<div class="empty">Nothing yet.</div>{% endif %}</div>
+</div>
+<div class="card flat"><div class="hd"><h2>{{ ico('scan-line') }} Recent scans</h2><a href="/scans">All scans</a></div>
+  {% if scans %}<table class="t"><thead><tr><th>#</th><th>Type</th><th>Target</th><th>Status</th><th>Started</th></tr></thead><tbody>{% for s in scans %}
+    <tr><td><a href="/scans/{{ s.id }}">#{{ s.id }}</a></td><td>{{ s.kind }}</td><td class="mono">{{ s.target }}</td><td>{{ pill(s.status) }}</td><td>{{ (s.started_at or s.created_at)|local }}</td></tr>{% endfor %}</tbody></table>
+  {% else %}<div class="empty">{{ ico('scan-line') }}No scans yet.</div>{% endif %}</div>
+{% endblock %}
