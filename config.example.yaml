@@ -1,0 +1,32 @@
+# Netrik configuration (restart the app after editing)
+
+collector_name: ""        # name of this scanning machine; empty = hostname
+
+# Networks Netrik may actively scan. Empty = only this machine's own local networks.
+allowed_ranges: []        # e.g. ["192.168.1.0/24", "10.20.0.0/24"]
+
+# Optional zones, used by the topology view and policy checks.
+zones: []
+#  - {name: "Computer Lab",    cidr: "192.168.10.0/24"}
+#  - {name: "Server Room",     cidr: "192.168.20.0/24"}
+
+# Intended access policy: "from" zone must NOT reach "to" zone on these ports.
+policy:
+  deny: []
+#   - {from: "Student Wi-Fi", to: "Server Room", ports: [445, 3389]}
+
+stale_hours: 24           # no evidence from any source for this long = "not seen recently"
+max_rate: 1000            # packets per second cap for every Nmap scan (lower it on weak Wi-Fi)
+scan_timeout_minutes: 120 # a scan stopped at this limit keeps the hosts it already finished
+host_timeout_minutes: 15  # give up on a single stubborn host after this long
+name_lookup: true         # learn hostnames via DNS, mDNS and NetBIOS after scans
+max_targets: 1024         # largest number of addresses in one scan request
+nmap_privileged: false    # set true after running scripts/setup_nmap_caps.sh
+dhcp_lease_files: []      # e.g. ["/var/lib/misc/dnsmasq.leases"]
+
+# Optional DNS monitor (start it from Settings). Devices must use this machine as their DNS server on this port.
+# Most devices can only use port 53; to bind it without root run:  sudo setcap cap_net_bind_service=+ep $(readlink -f $(which python3))
+dns_monitor:
+  bind: 0.0.0.0
+  port: 5353
+  upstream: 1.1.1.1
