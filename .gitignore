@@ -1,0 +1,25 @@
+# Python
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+
+# Runtime data: database, secret key, raw scan output (can contain your network's details)
+data/
+*.db
+*.db-wal
+*.db-shm
+
+# Local configuration for your own network
+config.yaml
+
+# Exported evidence and collector bundles
+bundle*.json
+*.zip
+*.log
+
+# Editors, OS, secrets
+.vscode/
+.idea/
+.DS_Store
+.env
